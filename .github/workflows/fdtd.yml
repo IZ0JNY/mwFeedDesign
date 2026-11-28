@@ -1,0 +1,47 @@
+name: openEMS simulazioni lunghe (fdtd/)
+
+# Long FDTD runs at 100 cells/λ (hours) run here, not in the cloud session (it restarts when idle).
+# Write the command (relative to fdtd/) in fdtd/RUN.txt on a claude/** branch and push: the results JSON is
+# uploaded as an artifact and committed back to the branch.
+on:
+  push:
+    branches: ["claude/**"]
+    paths: ["fdtd/RUN.txt"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+      - name: openEMS v0.37.0 (compilato, ~5 min)
+        run: sudo bash fdtd/setup_cloud.sh
+      - name: Simulazione
+        run: |
+          nproc; free -g; cat fdtd/RUN.txt
+          sudo -E /opt/openEMS/venv/bin/python -u fdtd/$(head -1 fdtd/RUN.txt) 2>&1 | tee fdtd_run.log
+      - name: Log della simulazione
+        if: always()
+        run: sudo sh -c 'for f in fdtd/runs/*/sim.log; do echo "== $f"; grep -v Timestep "$f" | tail -40; grep Timestep "$f" | tail -3; done' || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fdtd-results
+          path: |
+            fdtd/results/*.json
+            fdtd_run.log
+            fdtd/runs/*/results.json
+            fdtd/runs/*/sim.log
+      - name: Risultati sul ramo
+        if: success()
+        run: |
+          sudo chown -R "$(id -u)" fdtd
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add fdtd/results/*.json
+          git commit -m "fdtd: risultati della run $GITHUB_RUN_ID" || exit 0
+          git push
