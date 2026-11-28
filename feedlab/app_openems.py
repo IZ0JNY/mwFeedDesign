@@ -218,13 +218,25 @@ def _new_section(S, geo, dish):
     threads = c[3].number_input("Thread CPU (0 = tutti)", 0, 128, 0, key="oems_thr")
     c = st.columns(4)
     if mode == "Convergenza della mesh":
-        cells_list = c[0].multiselect("Celle per λ", [12, 15, 20, 25, 30, 40, 50, 60], [15, 20, 30], key="oems_cl")
+        cells_list = c[0].multiselect("Celle per λ", [12, 15, 20, 25, 30, 40, 50, 60, 80, 100, 120], [60, 80, 100], key="oems_cl")
     else:
-        cells_list = [c[0].select_slider("Celle per λ", [12, 15, 20, 25, 30, 40, 50, 60], 20, key="oems_cells",
-                                         help="15 bozza · 20 rapida · 30–40 buona · 60 qualità OE2IGL (molta RAM)")]
+        cells_list = [c[0].select_slider("Celle per λ", [12, 15, 20, 25, 30, 40, 50, 60, 80, 100, 120], 100, key="oems_cells",
+                                         help="nel feed: 100 consigliato (quote entro ~λ/200); 20–40 solo come bozza")]
     sphere = c[1].checkbox("Sfera completa a f0", True, help="direttività vera, potenza irradiata, verifica BOR1", key="oems_sph")
     dump = c[2].checkbox("Salva il campo E (ParaView)", False, key="oems_dump")
     pad = c[3].select_slider("Aria attorno al feed (λ)", [0.25, 0.5, 0.75, 1.0], 0.5, key="oems_pad")
+    c = st.columns(3)
+    air = c[0].select_slider("Celle per λ in aria", [10, 15, 20, 30, 40, 60, "come nel feed"], 20, key="oems_air",
+                             help="fuori dal feed la mesh si allarga gradualmente fino a questo valore: "
+                                  "le quote del feed restano a piena risoluzione, RAM e tempo scendono molto")
+    grading = c[1].select_slider("Gradazione mesh (rapporto tra celle vicine)", [1.2, 1.3, 1.4, 1.5], 1.4,
+                                 key="oems_grad", help="più basso = transizione più dolce, più celle")
+    sym = c[2].selectbox("Simmetria", [1, 2, 4], 0, key="oems_sym",
+                         format_func={1: "modello intero", 2: "mezzo modello (parete PEC x = 0)",
+                                      4: "quarto di modello (PEC + PMC, approssimato)"}.get,
+                         help="feed a simmetria di rotazione eccitati in TE11: il mezzo modello dimezza RAM e tempo "
+                              "con lo stesso risultato (entro 0.1 punti di efficienza); il quarto li divide per 4 ma "
+                              "la parete PMC sposta il risultato di circa mezzo punto")
     sweep = None
     if mode == "Sweep di un parametro":
         tun = explore.TUNABLE.get(geo.kind)
@@ -246,7 +258,9 @@ def _new_section(S, geo, dish):
     def cfg_for(cells):
         return openems_sim.DeepConfig(f_lo=f_lo, f_hi=f_hi, cells_per_lambda=int(cells), end_db=float(end_db),
                                       ff_freqs=[float(x) for x in ffs], sphere=sphere, dump_fields=dump,
-                                      threads=int(threads), pad_lambda=float(pad))
+                                      threads=int(threads), pad_lambda=float(pad),
+                                      air_cells_per_lambda=0 if air == "come nel feed" else int(air),
+                                      grading=float(grading), symmetry=int(sym))
 
     plan = []                     # (label, geometry, config)
     if mode == "Sweep di un parametro" and sweep:
@@ -596,7 +610,7 @@ def _spacemap_section(S, geo, dish):
         keys = c[1].multiselect("Quote da ottimizzare", [k for k, _, _ in explore.TUNABLE[kind]],
                                 default=[k for k, _, _ in explore.TUNABLE[kind]][:2], key="sm_keys",
                                 format_func=lambda k: dict((a, b) for a, b, _ in explore.TUNABLE[kind])[k])
-        cells = c[2].select_slider("Celle per λ", [15, 20, 25, 30, 40], 20, key="sm_cells")
+        cells = c[2].select_slider("Celle per λ", [15, 20, 25, 30, 40, 60, 80, 100], 100, key="sm_cells")
         max_iter = c[3].slider("Simulazioni openEMS massime", 2, 8, 5, key="sm_max")
         c = st.columns(3)
         tol_mm = c[0].number_input("Convergenza: variazione quote < (mm)", 0.001, 0.2, 0.01, 0.005, format="%.3f", key="sm_tol")
@@ -626,7 +640,7 @@ def _sm_studies(S, env):
     if not studies:
         st.info("Nessuno studio di space mapping.")
         return
-    cells = S.get("sm_cells", 20)
+    cells = S.get("sm_cells", 100)
     for study in studies[:10]:
         if study.status == "in corso" and study.note == "auto":
             last = study.points[-1]

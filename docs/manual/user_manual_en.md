@@ -455,6 +455,8 @@ The **front view** colours the holes by function: **black** = waveguide flange h
 | **④ Results** | S11, patterns, efficiency, gain, G/T, phase centre; upload a `results.json` from another PC; compare runs |
 | **⑤ Space mapping** | corrects the fast-solver design with the openEMS result |
 
+> **Mesh.** In **② New analysis** you set **Cells per λ** in the feed (100 by default: dimensions stay within about λ/200, ±0.15 mm at 10 GHz), **Cells per λ in air** (20: outside the feed the mesh widens gradually), the **grading** (maximum ratio of neighbouring cells, 1.4) and the **symmetry** (full, half or quarter model). The table below shows the estimated cells, RAM and run time of each simulation and updates on every change. Grid lines always sit on every edge of the feed, so radii and lengths are exact; with few cells per λ the shape of slots and sloped walls is lost.
+
 > **Validation reminder.** Every 5 changes to the design (dimensions, material, illumination, base, mounting…) a notice invites you to run an openEMS simulation: slower but more accurate than the fast simulator, it validates the data and shows whether the two results converge. With **⑤ Space mapping** the openEMS result then corrects the design.
 
 ---

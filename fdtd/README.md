@@ -23,7 +23,7 @@ $PY fdtd/benchmark.py --fD 0.6                         # feed pubblicati, stesse
 $PY fdtd/optimize.py --family w2imu --fD 0.6 --budget 60
 $PY fdtd/optimize.py --family dualflare --fD 0.6 --method de --budget 150
 $PY fdtd/optimize.py --family profile --fD 0.6 --seed-mm  # profilo libero, partenza dal mode matching
-$PY fdtd/optimize.py --family w2imu --fD 0.6 --confirm    # migliore e partenza di nuovo a 24 celle/λ
+$PY fdtd/optimize.py --family w2imu --fD 0.6 --confirm    # migliore e partenza di nuovo a --confirm-cpl
 ```
 
 Con Docker: `docker run --rm -v "$PWD/fdtd/results:/work/fdtd/results" -v "$PWD/fdtd/runs:/work/fdtd/runs" feedlab-fdtd python fdtd/optimize.py ...`
@@ -40,12 +40,17 @@ Con Docker: `docker run --rm -v "$PWD/fdtd/results:/work/fdtd/results" -v "$PWD/
 ## Impostazioni di simulazione (`fdtd_eval.EvalConfig`)
 
 - eccitazione f0 ± 10 % (impulso corto), campo lontano a f0·(1−b), f0, f0·(1+b), S11 valutato solo in f0 ± b;
-- cella = λ0/16 durante la ricerca; le linee di griglia più vicine di 0.3 celle si fondono (le celle
-  minuscole riducono il passo temporale: i corrugati passavano da 3 a 18 minuti);
-- massimo 40 000 passi; una simulazione che non scende sotto −22 dB di energia (cavità chiusa, instabilità)
+- **sempre 100 celle/λ nel feed** (regola di Ivan, dalla 0.4.29): le linee di griglia stanno su ogni spigolo,
+  le pareti oblique e le scanalature restano entro ±λ/200 (±0.15 mm a 10 GHz); fuori dal feed la mesh si
+  allarga con rapporto 1.4 fino a 20 celle/λ in aria; linee più vicine di 0.2 celle si fondono;
+- **mezzo modello** (parete PEC in x = 0, `symmetry=2`): metà RAM e tempo. Verifica W2IMU a 40 celle/λ:
+  intero η 78.18 %, S11 −40.8 dB; mezzo 78.06 %, −37.8 dB; quarto (PEC + PMC) 77.52 %, −29.2 dB, quindi
+  il quarto non si usa;
+- massimo 400 000 passi; una simulazione che non scende sotto −22 dB di energia (cavità chiusa, instabilità)
   è scartata con penalità 1.0.
 
-Con queste regole: W2IMU 29 s, Axial Corrugated 95 s (4 core).
+A 16 celle/λ (prima della 0.4.29): W2IMU 29 s, Axial Corrugated 95 s (4 core). A 100 celle/λ servono ore
+(corrugato f/D 0.4 a 10 GHz: ~110 M celle, ~10 GB di RAM con il mezzo modello).
 
 ## Figura di merito
 
@@ -65,5 +70,5 @@ meno 0.01 per ogni dB di S11 sopra −20 dB e per ogni λ di lunghezza oltre 12 
 | 20 | 0.82 M | 82 s | 76.8 % | 75.9 % | −26.5 dB |
 | 26 | 1.53 M | 174 s | 77.0 % | 76.1 % | −28.8 dB |
 
-(4 core). A 16 celle/λ l'errore resta entro ~1.5 punti e l'ordinamento dei progetti non cambia: si cerca a
-16 e si conferma a 24+. Il valore converge sul ~77 % del W2IMU riportato da W1GHZ.
+(4 core, mesh uniforme). A 16 celle/λ l'errore resta entro ~1.5 punti, ma le quote si arrotondano troppo
+(±0.6 mm a 10 GHz con 24 celle/λ): dalla 0.4.29 si cerca e si conferma a 100 celle/λ. Il valore converge sul ~77 % del W2IMU riportato da W1GHZ.

@@ -51,8 +51,12 @@ class DeepConfig:
     """Settings of one openEMS run. Frequencies in GHz."""
     f_lo: float | None = None             # default 0.9 f0
     f_hi: float | None = None             # default 1.1 f0
-    cells_per_lambda: int = 20            # at f_hi: 15 draft, 20 quick, 30-40 good, 60 OE2IGL quality
-    nr_ts: int = 100000                   # max timesteps
+    cells_per_lambda: int = 100           # at f_hi, inside the feed (metal region): 100 keeps the machined
+                                          # dimensions (Ivan: always 100); the free space uses air_cells_per_lambda
+    air_cells_per_lambda: int = 20        # free space and PML around the feed (graded from the feed mesh);
+                                          # >= cells_per_lambda or 0 = one uniform mesh, as before 0.4.28
+    nr_ts: int = 600000                   # max timesteps (the fine feed mesh needs a small time step; the run
+                                          # stops at end_db anyway)
     end_db: float = 40.0                  # stop when energy has decayed by this many dB
     port_mode: str = "TE11"
     n_freq: int = 201                     # points of the S11 sweep
@@ -64,8 +68,10 @@ class DeepConfig:
     pad_lambda: float = 0.5               # air between feed and PML (wavelengths at f0)
     dump_fields: bool = False             # E-field in the xz plane at f0 (VTK, ParaView)
     threads: int = 0                      # 0 = openEMS default (all cores)
-    min_cell_frac: float = 0.0            # >0: merge mesh lines closer than this x cell size (faster, coarser
-                                          # geometry: used by the fdtd/ optimiser, 0 = exact lines)
+    symmetry: int = 1                     # 1 full model, 2 half (PEC wall x = 0), 4 quarter (+ PMC wall y = 0)
+    grading: float = 1.4                  # max ratio of neighbouring cells from the feed mesh to the air mesh
+    min_cell_frac: float = 0.2            # merge mesh lines closer than this x feed cell (a tiny cell shrinks
+                                          # the time step); 0.2 cell at 100 c/λ = λ/500, 0 = exact lines
     openems_root: str = ""                # filled in by openems_local when known
     label: str = ""
 
@@ -96,11 +102,20 @@ def mesh_estimate(geo: FeedGeometry, cfg: DeepConfig) -> dict:
     lam_min = C0 / (c.f_hi * 1e9) * 1e3
     lam0 = C0 / (geo.f_ghz * 1e9) * 1e3
     res = lam_min / c.cells_per_lambda
-    pad = c.pad_lambda * lam0 + 10 * res
+    air = int(c.air_cells_per_lambda or 0)
+    res_air = lam_min / air if 0 < air < c.cells_per_lambda else res
+    pad = c.pad_lambda * lam0 + 10 * res_air
     z_back = -max(lam0, 3 * geo.r_input)
-    nxy = 2 * (geo.outer_radius + pad) / res + 16
-    nz = (geo.z_aperture + pad - z_back) / res + 16
-    cells = nxy * nxy * nz
+    # fine through the feed, graded (1.4) to the air cell, air cells to the PML
+    import math as _m
+    gr = float(c.grading or 1.4)
+    n_grade = _m.log(res_air / res) / _m.log(gr) if res_air > res else 0.0
+    grade_len = res * sum(gr ** k for k in range(int(n_grade)))
+    def _n(fine_len, air_len):
+        return fine_len / res + 2 * n_grade + max(0.0, air_len - 2 * grade_len) / res_air + 16
+    nxy = _n(2 * geo.outer_radius, 2 * pad)
+    nz = _n(geo.z_aperture, pad - z_back)
+    cells = nxy * nxy * nz / int(c.symmetry or 1)
     # Courant step of a uniform mesh, and the ~ pulse length + ringing: empirical 8-30k steps for feeds
     dt = res * 1e-3 / (C0 * 3 ** 0.5)
     bw = (c.f_hi - c.f_lo) * 1e9
@@ -231,18 +246,24 @@ def build(sim_path):
     f0, f_lo, f_hi = G["f0_ghz"] * 1e9, C["f_lo"] * 1e9, C["f_hi"] * 1e9
     POLYS, R_IN, Z_AP, R_MAX = G["polys"], G["r_input"], G["z_aperture"], G["outer_radius"]
     lam_min = C0 / f_hi / unit
-    res = lam_min / C["cells_per_lambda"]
+    res = lam_min / C["cells_per_lambda"]               # inside the feed
+    air = int(C.get("air_cells_per_lambda") or 0)
+    res_air = lam_min / air if 0 < air < C["cells_per_lambda"] else res     # free space and PML
     lam0 = C0 / f0 / unit
 
     FDTD = openEMS(NrTS=int(C["nr_ts"]), EndCriteria=10 ** (-C["end_db"] / 10.0))
     FDTD.SetGaussExcite(0.5 * (f_lo + f_hi), 0.5 * (f_hi - f_lo))
-    FDTD.SetBoundaryCond(["PML_8"] * 6)
+    # symmetry (BOR feed, x-polarised TE11): E tangential to x = 0 is zero -> PEC wall, H tangential to y = 0 is
+    # zero -> PMC wall; only the quarter x, y >= 0 is computed (4x fewer cells), the far field is mirrored back
+    NSYM = int(C.get("symmetry") or 1)          # 1 full, 2 half (PEC x = 0), 4 quarter (+ PMC y = 0)
+    SYM, SYM_Y = NSYM >= 2, NSYM >= 4
+    FDTD.SetBoundaryCond(["PEC" if SYM else "PML_8", "PML_8", "PMC" if SYM_Y else "PML_8", "PML_8"] + ["PML_8"] * 2)
     CSX = ContinuousStructure()
     FDTD.SetCSX(CSX)
     mesh = CSX.GetGrid()
     mesh.SetDeltaUnit(unit)
 
-    pad = C["pad_lambda"] * lam0 + 10 * res
+    pad = C["pad_lambda"] * lam0 + 10 * res_air
     z_back = -max(lam0, 3 * R_IN)                       # input guide runs into the back PML (matched)
     # wall of the input guide that runs into the back PML: at least two cells thick, with its own mesh lines
     # (a fixed 0.5 mm wall fell between the lines at 10 GHz, 1.3 mm cells, and the guide was open)
@@ -264,14 +285,34 @@ def build(sim_path):
             out.append(v)
         return out
 
-    xy = merge(xy, keep=(0.0, -R_IN, R_IN))
-    mesh.SetLines("x", xy)
-    mesh.SmoothMeshLines("x", res, ratio=1.4)
-    mesh.SetLines("y", mesh.GetLines("x"))
-    zl = sorted(set([z_back, Z_AP + pad] + [float(z) for p in POLYS for z in p[1]]))
-    zl = merge(zl, keep=(z_back,))
+    try:
+        from CSXCAD.SmoothMeshLines import SmoothMeshLines
+    except ImportError:                     # old CSXCAD without the module: plain subdivision, no grading
+        def SmoothMeshLines(lines, max_res, ratio=1.4):
+            v = sorted(set(float(x) for x in lines))
+            out = [v[0]]
+            for b in v[1:]:
+                n = max(1, int(np.ceil((b - out[-1]) / max_res - 1e-9)))
+                a0 = out[-1]
+                out += [a0 + (b - a0) * k / n for k in range(1, n + 1)]
+            return np.array(out)
+
+    def graded(lines, lo, hi, ends, keep):
+        """fine mesh (res) through the feed [lo, hi], graded (ratio 1.4) to res_air out to the domain ends"""
+        inner = merge(sorted(set([v for v in lines if lo <= v <= hi] + [lo, hi])), keep)
+        inner = list(SmoothMeshLines(np.array(inner), res, ratio=GR))
+        allv = np.array(sorted(set(inner + [float(e) for e in ends] + [v for v in lines if not lo <= v <= hi])))
+        return SmoothMeshLines(allv, res_air, ratio=GR)
+
+    m_f = 2 * res
+    GR = float(C.get("grading") or 1.4)
+    half = graded([v for v in xy if v >= 0], 0.0, R_MAX + m_f, (0.0, R_MAX + pad), keep=(0.0, R_IN))
+    full = sorted(set([-v for v in half] + list(half)))       # mirror of the half mesh: identical cells either way
+    mesh.SetLines("x", half if SYM else full)
+    mesh.SetLines("y", half if SYM_Y else full)
+    zg = sorted(set([float(z) for p in POLYS for z in p[1]]))
+    zl = graded(zg + [z_back, Z_AP + pad], min(zg) - m_f, Z_AP + m_f, (z_back, Z_AP + pad), keep=(z_back,))
     mesh.SetLines("z", zl)
-    mesh.SmoothMeshLines("z", res, ratio=1.4)
     x_lines, y_lines, z_lines = mesh.GetLines("x"), mesh.GetLines("y"), mesh.GetLines("z")
 
     metal = CSX.AddMetal("feed")
@@ -281,13 +322,20 @@ def build(sim_path):
         metal.AddRotPoly(points=np.array(p), norm_dir="x", elevation=0, rot_axis="z",
                          angle=[0, 2 * np.pi], priority=10)
 
-    start = [-R_IN, -R_IN, z_lines[10]]
+    start = [0.0 if SYM else -R_IN, 0.0 if SYM_Y else -R_IN, z_lines[10]]
     stop = [R_IN, R_IN, z_lines[10] + 0.25 * lam0]
-    port = FDTD.AddCircWaveGuidePort(0, start, stop, "z", R_IN * unit, C["port_mode"], 0, 1)
+    # quarter model: the port box is the x, y >= 0 quarter, so the TE11 profile must be referred to the axis
+    # (default origin is the box centre, which would put the mode off-axis)
+    port = FDTD.AddCircWaveGuidePort(0, start, stop, "z", R_IN * unit, C["port_mode"], 0, 1,
+                                     **({"local_origin": [0.0, 0.0, start[2]]} if SYM else {}))
 
-    nf_start = [x_lines[10], y_lines[10], z_lines[10]]
+    nf_start = [x_lines[0] if SYM else x_lines[10], y_lines[0] if SYM_Y else y_lines[10], z_lines[10]]
     nf_stop = [x_lines[-11], y_lines[-11], z_lines[-11]]
-    nf2ff = FDTD.CreateNF2FFBox("nf2ff", nf_start, nf_stop, directions=[1, 1, 1, 1, 0, 1])
+    if SYM:
+        nf2ff = FDTD.CreateNF2FFBox("nf2ff", nf_start, nf_stop, directions=[0, 1, 0 if SYM_Y else 1, 1, 0, 1],
+                                    mirror=[1, 0, 2 if SYM_Y else 0, 0, 0, 0])
+    else:
+        nf2ff = FDTD.CreateNF2FFBox("nf2ff", nf_start, nf_stop, directions=[1, 1, 1, 1, 0, 1])
 
     if C.get("dump_fields"):
         try:
@@ -363,6 +411,7 @@ def main(post_only=False):
     except Exception:
         zin = np.full_like(s11, np.nan)
     pacc = 0.5 * np.real(port.uf_tot * np.conj(port.if_tot))       # accepted power (incident - reflected)
+    pacc = int(C.get("symmetry") or 1) * pacc                    # the port sees 1/2 or 1/4 of the guide                                             # the port sees one quarter of the aperture
 
     center = [0, 0, m["Z_AP"] * unit]
     theta = np.arange(0.0, 180.0 + C["theta_step"] / 2, C["theta_step"])

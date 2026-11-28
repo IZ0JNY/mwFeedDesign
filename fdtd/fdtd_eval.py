@@ -36,23 +36,26 @@ class EvalConfig:
     fD: float = 0.6                    # prime-focus or offset-equivalent f/D of the dish
     band: float = 0.02                 # far field at f0*(1-band), f0, f0*(1+band)
     exc_band: float = 0.10             # excitation f0*(1 +/- exc_band): a short pulse, ~4x fewer timesteps
-    min_cell_frac: float = 0.3         # merge mesh lines closer than 0.3 cell (small cells shrink the time step)
-    cells_per_lambda: int = 16         # 16 for search (-1.5 % bias vs 26), 24+ to confirm
+    min_cell_frac: float = 0.2         # merge mesh lines closer than 0.2 cell (small cells shrink the time step)
+    cells_per_lambda: int = 100        # feed region; >= 80 keeps the geometry within ~0.1 mm at 10 GHz
+    air_cells_per_lambda: int = 20     # graded to this outside the feed (0 = uniform mesh)
+    symmetry: int = 2                  # 1 full model, 2 half model (PEC wall x = 0, same result, 2x fewer cells)
     end_db: float = 30.0
-    nr_ts: int = 40000                 # typical runs stop at 10-16k steps; resonant designs would run to 100k
+    nr_ts: int = 400000                # ~6x the 16 c/λ count (time step scales with the cell)
     s11_max_db: float = -20.0          # penalty above this, anywhere in f0*(1 +/- band)
     s11_weight: float = 0.01           # penalty per dB above s11_max_db
     max_len_lambda: float = 12.0       # penalty above this feed length
     pad_lambda: float = 0.4
     threads: int = 0
-    timeout_s: float = 3 * 3600
+    timeout_s: float = 72 * 3600
 
 
 def _key(geo, cfg: EvalConfig) -> str:
     g = openems_sim.geometry_payload(geo)
     s = json.dumps({"polys": g["polys"], "r_in": g["r_input"], "f0": g["f0_ghz"],
                     "sim": [cfg.band, cfg.cells_per_lambda, cfg.end_db, cfg.pad_lambda]
-                    + ([cfg.exc_band, cfg.min_cell_frac] if (cfg.exc_band, cfg.min_cell_frac) != (0.0, 0.0) else [])}, sort_keys=True)
+                    + ([cfg.exc_band, cfg.min_cell_frac] if (cfg.exc_band, cfg.min_cell_frac) != (0.0, 0.0) else [])
+                    + ([cfg.air_cells_per_lambda, cfg.symmetry] if cfg.cells_per_lambda > 30 else [])}, sort_keys=True)
     return hashlib.sha1(s.encode()).hexdigest()[:16]
 
 
@@ -65,10 +68,13 @@ def run_openems(geo, cfg: EvalConfig, label: str = "") -> Path:
     f0 = geo.f_ghz
     eb = max(cfg.exc_band, cfg.band)
     # the mesh rule of the script is "cells per wavelength at f_hi": keep the cell = λ0 / cells_per_lambda
-    cpl = int(round(cfg.cells_per_lambda * (1 + eb)))
+    # (up to 0.4.28, <= 30 c/λ: cpl * (1 + eb), i.e. λ0 / 1.21 cpl; kept so the cached runs stay valid)
+    cpl = int(round(cfg.cells_per_lambda * (1 + eb))) if cfg.cells_per_lambda <= 30 else \
+        int(round(cfg.cells_per_lambda / (1 + eb)))
     dc = openems_sim.DeepConfig(f_lo=f0 * (1 - eb), f_hi=f0 * (1 + eb), cells_per_lambda=cpl,
                                 ff_freqs=[f0 * (1 - cfg.band), f0, f0 * (1 + cfg.band)],
-                                min_cell_frac=cfg.min_cell_frac,
+                                min_cell_frac=cfg.min_cell_frac, symmetry=cfg.symmetry if cfg.cells_per_lambda > 30 else 1,
+                                air_cells_per_lambda=cfg.air_cells_per_lambda if cfg.cells_per_lambda > 30 else 0,
                                 end_db=cfg.end_db, nr_ts=cfg.nr_ts, n_freq=int(round(20 * eb / 0.01)) + 1, theta_step=1.0, sphere=False, pad_lambda=cfg.pad_lambda,
                                 threads=cfg.threads, label=label or geo.kind)
     script = openems_sim.make_deep_script(geo, d, dc, name="sim.py")

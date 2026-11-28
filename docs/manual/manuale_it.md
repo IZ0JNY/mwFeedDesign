@@ -456,6 +456,8 @@ La **vista frontale** colora i fori per funzione: **nero** = fori della flangia 
 | **④ Risultati** | S11, lobi, efficienza, guadagno, G/T, centro di fase; caricamento di un `results.json` da un altro PC; confronto tra simulazioni |
 | **⑤ Space mapping** | corregge il progetto del risolutore rapido con il risultato di openEMS |
 
+> **Mesh.** In **② Nuova analisi** si impostano **Celle per λ** nel feed (100 di default: le quote restano entro circa λ/200, ±0.15 mm a 10 GHz), **Celle per λ in aria** (20: fuori dal feed la mesh si allarga gradualmente), la **gradazione** (rapporto massimo tra celle vicine, 1.4) e la **simmetria** (modello intero, mezzo o quarto). La tabella sotto mostra per ogni simulazione celle, RAM e durata stimate, e si aggiorna a ogni cambio. Le linee di griglia stanno sempre su ogni spigolo del feed: raggi e lunghezze sono esatti; con poche celle per λ si perde la forma delle scanalature e delle pareti inclinate.
+
 > **Invito alla validazione.** Ogni 5 modifiche al progetto (quote, materiale, illuminazione, base, montaggio…) compare un avviso che invita a lanciare una simulazione openEMS: è più lenta ma più precisa del simulatore veloce, valida i dati e mostra se i due risultati convergono. Con **⑤ Space mapping** il risultato di openEMS corregge poi il progetto.
 
 ---

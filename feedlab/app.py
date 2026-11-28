@@ -1109,9 +1109,14 @@ def _sim_export_section(geo, fname):
                "aperti e monitor del campo lontano, pronto da simulare. Ogni ZIP contiene le istruzioni (LEGGIMI).")
     c = st.columns(3)
     bw = c[0].slider("Banda ± %", 2, 25, 10, key="simx_bw")
-    cells = c[1].select_slider("Celle per λ", [12, 15, 20, 25, 30, 40, 50, 60], 20, key="simx_cells",
-                               help="15 bozza · 20 rapida · 30–40 buona · 60 qualità OE2IGL (molta RAM)")
+    cells = c[1].select_slider("Celle per λ", [12, 15, 20, 25, 30, 40, 50, 60, 80, 100, 120], 100, key="simx_cells",
+                               help="nel feed: 100 consigliato (quote entro ~λ/200); 20–40 solo come bozza")
     nff = c[2].select_slider("Frequenze del lobo", [1, 3, 5, 7], 3, key="simx_nff")
+    _est = openems_sim.mesh_estimate(geo, openems_sim.DeepConfig(f_lo=S.f_ghz * (1 - bw / 100), f_hi=S.f_ghz * (1 + bw / 100),
+                                                              cells_per_lambda=int(cells)))
+    st.caption(_T("Stima openEMS: {m:.1f} M celle, RAM ≈ {r:.1f} GB, durata ≈ {t} su un PC desktop tipico "
+                  "(feed a {c} celle/λ, aria graduata a 20 celle/λ).", m=_est["cells"] / 1e6, r=_est["ram_mb"] / 1024,
+                  t=app_openems._fmt_time(_est["time_min"] * 60), c=int(cells)))
     c = st.columns(2)
     c[0].download_button("⬇️ Script openEMS (.zip)", _sim_export.openems_zip(geo, bw, cells, nff),
                          file_name=f"{fname}_openems.zip", mime="application/zip", key="simx_oems",

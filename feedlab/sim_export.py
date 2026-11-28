@@ -72,7 +72,7 @@ EN
 """
 
 
-def openems_zip(geo, band_pct: float = 10.0, cells_per_lambda: int = 20, n_ff: int = 3,
+def openems_zip(geo, band_pct: float = 10.0, cells_per_lambda: int = 100, n_ff: int = 3,
                 sphere: bool = True, end_db: float = 40.0) -> bytes:
     _check(geo)
     f_lo, f_hi, ffs = _freqs(geo.f_ghz, band_pct, n_ff)
@@ -130,7 +130,7 @@ def _rotate_block(name: str, component: str, pts: list[tuple[float, float]]) -> 
     return ln
 
 
-def cst_macro(geo, band_pct: float = 10.0, cells_per_lambda: int = 20, n_ff: int = 3,
+def cst_macro(geo, band_pct: float = 10.0, cells_per_lambda: int = 100, n_ff: int = 3,
               end_db: float = 40.0) -> str:
     """CST Studio Suite VBA macro (.bas): Home > Macros > Run Macro (or the VBA editor), in a new
     empty MW&RF&Optical project. Every step goes to the History List, so the model can be rebuilt/edited."""
@@ -179,7 +179,7 @@ def cst_macro(geo, band_pct: float = 10.0, cells_per_lambda: int = 20, n_ff: int
         "     .Create", "End With"])
     L += _history_block("define mesh", [
         "With MeshSettings", "     .SetMeshType \"Hex\"", f"     .Set \"StepsPerWaveNear\", \"{int(cells_per_lambda)}\"",
-        f"     .Set \"StepsPerWaveFar\", \"{int(cells_per_lambda)}\"", "End With",
+        f"     .Set \"StepsPerWaveFar\", \"{min(int(cells_per_lambda), 20)}\"", "End With",
         "With Mesh", "     .MeshType \"PBA\"", "End With"])
     for f in ffs:
         L += _history_block(f"define farfield monitor: farfield (f={_n(f)})", [
@@ -219,7 +219,7 @@ EN
 """
 
 
-def cst_zip(geo, band_pct: float = 10.0, cells_per_lambda: int = 20, n_ff: int = 3, end_db: float = 40.0,
+def cst_zip(geo, band_pct: float = 10.0, cells_per_lambda: int = 100, n_ff: int = 3, end_db: float = 40.0,
             name: str | None = None) -> bytes:
     f_lo, f_hi, ffs = _freqs(geo.f_ghz, band_pct, n_ff)
     macro = (name or f"feedlab_{geo.kind}_{geo.f_ghz:g}GHz".replace(".", "p")) + ".bas"

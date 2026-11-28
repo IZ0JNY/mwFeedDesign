@@ -1661,4 +1661,17 @@ ENTRIES = [
     ('script Python autonomo (non serve FeedLab): python -u sim_<feed>.py, poi carica results.json nella scheda 🖥️ Full-wave openEMS', 'stand-alone Python script (FeedLab not needed): python -u sim_<feed>.py, then load results.json in the 🖥️ Full-wave openEMS tab'),
     ('macro VBA: in un progetto vuoto CST, Home > Macros > Run Macro. Costruisce il modello nella History List; il solutore lo avvii tu', 'VBA macro: in an empty CST project, Home > Macros > Run Macro. It builds the model in the History List; you start the solver'),
     ('🧪 Script per simulatori: openEMS + macro CST', '🧪 Simulator scripts: openEMS + CST macro'),
+    ('nel feed: 100 consigliato (quote entro ~λ/200); 20–40 solo come bozza', 'in the feed: 100 recommended (dimensions within ~λ/200); 20–40 as a draft only'),
+    ('Celle per λ in aria', 'Cells per λ in air'),
+    ('come nel feed', 'same as feed'),
+    ('fuori dal feed la mesh si allarga gradualmente fino a questo valore: le quote del feed restano a piena risoluzione, RAM e tempo scendono molto', 'outside the feed the mesh widens gradually up to this value: the feed dimensions keep full resolution, RAM and time drop a lot'),
+    ('Gradazione mesh (rapporto tra celle vicine)', 'Mesh grading (ratio of neighbouring cells)'),
+    ('più basso = transizione più dolce, più celle', 'lower = smoother transition, more cells'),
+    ('Simmetria', 'Symmetry'),
+    ('modello intero', 'full model'),
+    ('mezzo modello (parete PEC x = 0)', 'half model (PEC wall x = 0)'),
+    ('quarto di modello (PEC + PMC, approssimato)', 'quarter model (PEC + PMC, approximate)'),
+    ('feed a simmetria di rotazione eccitati in TE11: il mezzo modello dimezza RAM e tempo con lo stesso risultato (entro 0.1 punti di efficienza); il quarto li divide per 4 ma la parete PMC sposta il risultato di circa mezzo punto', 'rotationally symmetric feeds excited in TE11: the half model halves RAM and time with the same result (within 0.1 efficiency points); the quarter model divides them by 4 but the PMC wall shifts the result by about half a point'),
+    ('Stima openEMS: {m:.1f} M celle, RAM ≈ {r:.1f} GB, durata ≈ {t} su un PC desktop tipico (feed a {c} celle/λ, aria graduata a 20 celle/λ).', 'openEMS estimate: {m:.1f} M cells, RAM ≈ {r:.1f} GB, run time ≈ {t} on a typical desktop PC (feed at {c} cells/λ, air graded to 20 cells/λ).'),
+
 ]

@@ -6,11 +6,13 @@
 - **Gibertini OP 150 L** nel catalogo parabole: offset 155 × 166 cm, F/D 0.66, 43.3 dBi a 10.95 GHz (efficienza ≈ 68 %).
 - **Parabole offset custom fino a 12 m:** nei campi «la tua parabola» diametro e asse corto arrivano a 12 m (asse lungo 13 m, focale 24 m).
 - **Feed per f/D 0.4 come file progetto:** «Feed 0.4 f/D» non è più nella lista dei feed (niente feed divisi per focale). I feed ottimizzati con openEMS per f/D 0.4 (corrugato 83.5 %, Chaparral 80.1 %, VE4MA 80.3 %, W2IMU 73.5 %) sono file progetto `.feedlab.json` su GitHub in [`fdtd/results/feedlab/`](https://github.com/IZ0JNY/FeedLab/tree/main/fdtd/results/feedlab) (10 e 24 GHz, parabole 3 e 3.7 m): si aprono con 📂 Apri progetto. I progetti della 0.4.28 con «Feed 0.4 f/D» si aprono come Axial Corrugated con le stesse quote.
+- **openEMS a 100 celle/λ:** in ② Nuova analisi si impostano celle per λ nel feed (fino a 120, default 100: quote entro ±λ/200), celle per λ in aria (20, mesh graduata fuori dal feed), gradazione e simmetria (intero, mezzo, quarto di modello). La tabella mostra celle, RAM e durata stimate di ogni simulazione. 100 celle/λ anche negli script openEMS e CST di Disegno & STEP, con la stima.
 
 ### 🇬🇧 What's new
 - **Gibertini OP 150 L** in the dish catalogue: offset 155 × 166 cm, F/D 0.66, 43.3 dBi at 10.95 GHz (efficiency ≈ 68 %).
 - **Custom offset dishes up to 12 m:** in the "your dish" fields, diameter and short axis go up to 12 m (long axis 13 m, focal length 24 m).
 - **f/D 0.4 feeds as project files:** "Feed 0.4 f/D" is no longer in the feed list (no feeds split by focal length). The feeds optimised with openEMS for f/D 0.4 (corrugated 83.5 %, Chaparral 80.1 %, VE4MA 80.3 %, W2IMU 73.5 %) are `.feedlab.json` project files on GitHub in [`fdtd/results/feedlab/`](https://github.com/IZ0JNY/FeedLab/tree/main/fdtd/results/feedlab) (10 and 24 GHz, 3 and 3.7 m dishes): open them with 📂 Open project. 0.4.28 projects saved with "Feed 0.4 f/D" open as an Axial Corrugated with the same dimensions.
+- **openEMS at 100 cells/λ:** in ② New analysis you set cells per λ in the feed (up to 120, default 100: dimensions within ±λ/200), cells per λ in air (20, graded mesh outside the feed), grading and symmetry (full, half, quarter model). The table shows the estimated cells, RAM and run time of each simulation. 100 cells/λ also in the openEMS and CST scripts of Drawing & STEP, with the estimate.
 
 Requisiti / Requirements: Windows 10/11 64-bit; Linux x86_64 (glibc 2.31+: Debian 11+, Ubuntu 20.04+).
 

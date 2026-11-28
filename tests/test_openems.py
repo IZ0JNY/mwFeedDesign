@@ -124,9 +124,22 @@ def test_detection_and_bindings_check(fake_env, tmp_path):
 
 def test_mesh_estimate_scales():
     geo = geometry.build("pickett_potter", 24.048, fD=0.7)
-    a = openems_sim.mesh_estimate(geo, openems_sim.DeepConfig(cells_per_lambda=15))
-    b = openems_sim.mesh_estimate(geo, openems_sim.DeepConfig(cells_per_lambda=30))
+    a = openems_sim.mesh_estimate(geo, openems_sim.DeepConfig(cells_per_lambda=15, air_cells_per_lambda=0))
+    b = openems_sim.mesh_estimate(geo, openems_sim.DeepConfig(cells_per_lambda=30, air_cells_per_lambda=0))
     assert 3.5 < b["cells"] / a["cells"] < 10 and b["time_min"] > a["time_min"]
+    # graded air mesh and the half model cut the cells of a 100 c/λ run
+    u = openems_sim.mesh_estimate(geo, openems_sim.DeepConfig(cells_per_lambda=100, air_cells_per_lambda=0))
+    g = openems_sim.mesh_estimate(geo, openems_sim.DeepConfig(cells_per_lambda=100))
+    h = openems_sim.mesh_estimate(geo, openems_sim.DeepConfig(cells_per_lambda=100, symmetry=2))
+    assert g["cells"] < u["cells"] and abs(h["cells"] * 2 - g["cells"]) < 0.01 * g["cells"]
+
+
+def test_deep_script_symmetry_and_grading(tmp_path):
+    geo = geometry.build("w2imu_oe2igl", 10.368, fD=0.6)
+    for sym in (1, 2, 4):
+        s = openems_sim.make_deep_script(geo, tmp_path / str(sym), openems_sim.DeepConfig(symmetry=sym, grading=1.3),
+                                         name="sim.py").read_text()
+        compile(s, "sim.py", "exec")
 
 
 def test_pick_windows_asset():
