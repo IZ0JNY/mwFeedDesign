@@ -92,10 +92,14 @@ CATALOG: list[DishModel] = [
     DishModel("Gibertini", "OP 125 L", "offset", 1245, 1335, 1210, 1300, 0.66, None, "", 21.3, None, None,
               {}, "", "Alu", "Gibertini OP125L installation guide (kosmosat.gr) + listini",
               "datasheet: F/D 0.66, fascio 1.32° a 11.7 GHz"),
-    DishModel("Gibertini", "OP 150 L", "offset", 1550, 1660, None, None, 0.66, None, "", None, None, 68,
-              {10.95: 43.3}, "", "", "dati Gibertini forniti da IZ0JNY (155 × 166 cm, F/D 0.66, 43.3 dBi a 10.95 GHz)",
-              "η ≈ 68% calcolata dal guadagno su 1550 mm; area attiva e angolo di offset non pubblicati: "
-              "misura assi e profondità per la focale"),
+    DishModel("Gibertini", "OP 150 S", "offset", 1550, 1660, 1500, 1610, 0.66, None, "", 21.3, 70, 70,
+              {10.7: 43.0, 11.7: 43.7, 12.75: 44.5}, "40", "spessore 2.0 mm",
+              "Gibertini OP 150 S datasheet (fornito da IZ0JNY)",
+              "fascio −3 dB 1.07° a 11.7 GHz; temperatura di rumore 31 K a 12 GHz e 30° di elevazione"),
+    DishModel("Gibertini", "OP 150 L", "offset", 1550, 1660, 1500, 1610, 0.66, None, "", 21.3, 70, 72,
+              {10.95: 43.3}, "", "", "dati Gibertini forniti da IZ0JNY (155 × 166 cm, F/D 0.66, 43.3 dBi a 10.95 GHz); "
+              "area attiva, offset e illuminazione dal datasheet OP 150 S (stesse dimensioni esterne e F/D)",
+              "η ≈ 72% calcolata dal guadagno sull'area attiva di 1500 mm"),
     # --- Fracarro ---
     DishModel("Fracarro", "RO125AP", "offset", 1240, 1345, None, None, None, None, "", 23.0, None, 74,
               {10.7: 41.0, 11.7: 41.6, 12.7: 42.4}, "", "Alu", "Fracarro RO125AP datasheet",
