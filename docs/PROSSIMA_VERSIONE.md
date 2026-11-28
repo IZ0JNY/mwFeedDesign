@@ -4,6 +4,7 @@
 
 | # | Richiesta | Stato |
 |---|---|---|
+| 1 | **Parabola Gibertini OP 150 S** nel catalogo (datasheet): offset 155 × 166 cm, area attiva 150 × 161 cm, F/D 0.66, offset 21.3°, illuminazione 70°, η 70 %, 43.0 / 43.7 / 44.5 dBi a 10.7 / 11.7 / 12.75 GHz; la **OP 150 L** usa la stessa area attiva, offset e illuminazione (η ≈ 72 % sull'area attiva) | ✅ fatto |
 
 ---
 
